@@ -77,6 +77,9 @@
 #[cfg(test)] extern crate rand;
 #[cfg(test)] extern crate extra = "extra";
 
+// we wrap some libc stuff
+extern crate libc;
+
 // Make std testable by not duplicating lang items. See #2912
 #[cfg(test)] extern crate realstd = "std";
 #[cfg(test)] pub use kinds = realstd::kinds;
@@ -168,8 +171,6 @@ pub mod sync;
 
 /* Runtime and platform support */
 
-#[unstable]
-pub mod libc;
 pub mod c_str;
 pub mod os;
 pub mod io;
