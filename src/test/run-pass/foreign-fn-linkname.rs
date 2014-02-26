@@ -9,9 +9,10 @@
 // except according to those terms.
 
 extern crate extra;
+extern crate libc;
 
-mod libc {
-    use std::libc::{c_char, size_t};
+mod mlibc {
+    use libc::{c_char, size_t};
 
     extern {
         #[link_name = "strlen"]
@@ -23,7 +24,7 @@ fn strlen(str: ~str) -> uint {
     // C string is terminated with a zero
     str.with_c_str(|buf| {
         unsafe {
-            libc::my_strlen(buf) as uint
+            mlibc::my_strlen(buf) as uint
         }
     })
 }

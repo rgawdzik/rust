@@ -178,8 +178,8 @@ impl <T> Container for CVec<T> {
 mod tests {
     use super::*;
 
-    use std::libc::*;
-    use std::libc;
+    use libc::*;
+    use libc;
     use std::ptr;
     use std::rt::global_heap::malloc_raw;
 

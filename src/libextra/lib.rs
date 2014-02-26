@@ -39,6 +39,7 @@ extern crate rand;
 extern crate serialize;
 extern crate sync;
 extern crate time;
+extern crate libc;
 
 // Utility modules
 pub mod c_vec;

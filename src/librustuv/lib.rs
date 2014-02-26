@@ -44,12 +44,13 @@ via `close` and `delete` methods.
 #[allow(visible_private_types)];
 
 #[cfg(test)] extern crate green;
+extern crate libc;
 
 use std::cast;
 use std::fmt;
 use std::io::IoError;
 use std::io;
-use std::libc::{c_int, c_void};
+use libc::{c_int, c_void};
 use std::ptr::null;
 use std::ptr;
 use std::rt::local::Local;

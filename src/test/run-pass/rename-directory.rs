@@ -13,10 +13,10 @@
 
 // ignore-fast
 extern crate extra;
+extern crate libc;
 
 use extra::tempfile::TempDir;
 use std::os;
-use std::libc;
 use std::io;
 use std::io::fs;
 

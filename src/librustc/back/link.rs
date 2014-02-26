@@ -105,7 +105,7 @@ pub mod write {
 
     use std::c_str::ToCStr;
     use std::io::Process;
-    use std::libc::{c_uint, c_int};
+    use libc::{c_uint, c_int};
     use std::str;
     use std::vec_ng::Vec;
 
