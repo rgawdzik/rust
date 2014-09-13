@@ -78,7 +78,6 @@ use core::ptr;
 use core::raw::Slice;
 use core::slice;
 use core::str;
-use std::macros;
 use libc;
 
 /// The representation of a C String.
