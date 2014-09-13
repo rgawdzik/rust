@@ -347,12 +347,12 @@ pub trait ToCStr {
 
     fn with_c_str_opt<T>(&self, f: |*const libc::c_char| -> T) -> Option<T> {
         let c_str =
-        match self.to_c_str_opt() {
+        return match self.to_c_str_opt() {
             Some(c_str) => {
                 Some(f(c_str.as_ptr()))
             },
             None => { None }
-        }
+        };
     }
 
     /// Unsafe variant of `with_c_str()` that doesn't check for nulls.
