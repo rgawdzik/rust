@@ -317,6 +317,8 @@ pub trait ToCStr {
     /// Fails the task if the receiver has an interior null.
     fn to_c_str(&self) -> CString;
 
+    fn to_c_str_opt(&self) -> Option<CString>;
+
     /// Unsafe variant of `to_c_str()` that doesn't check for nulls.
     unsafe fn to_c_str_unchecked(&self) -> CString;
 
