@@ -96,8 +96,12 @@ impl FromStr for Path {
 impl ToCStr for Path {
     #[inline]
     fn to_c_str(&self) -> CString {
-        // The Path impl guarantees no internal NUL
+        // The Path impl guarantees no internal NULL
         unsafe { self.to_c_str_unchecked() }
+    }
+
+    fn to_c_str_opt(&self) -> CString {
+        Some(unsafe { self.to_c_str_unchecked() })
     }
 
     #[inline]
@@ -110,6 +114,11 @@ impl<'a> ToCStr for &'a Path {
     #[inline]
     fn to_c_str(&self) -> CString {
         (*self).to_c_str()
+    }
+
+    #[inline]
+    fn to_c_str_opt(&self) -> Option<CString> {
+        (*self).to_c_str_opt()
     }
 
     #[inline]
