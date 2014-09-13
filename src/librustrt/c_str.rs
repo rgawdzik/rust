@@ -78,6 +78,7 @@ use core::ptr;
 use core::raw::Slice;
 use core::slice;
 use core::str;
+use std::macros;
 use libc;
 
 /// The representation of a C String.
@@ -344,6 +345,16 @@ pub trait ToCStr {
         f(c_str.as_ptr())
     }
 
+    fn with_c_str_opt<T>(&self, f: |*const libc::c_char| -> T) -> Option<T> {
+        let c_str =
+        match self.to_c_str_opt() {
+            Some(c_str) => {
+                Some(f(c_str.as_ptr()))
+            },
+            None => { None }
+        }
+    }
+
     /// Unsafe variant of `with_c_str()` that doesn't check for nulls.
     #[inline]
     unsafe fn with_c_str_unchecked<T>(&self, f: |*const libc::c_char| -> T) -> T {
@@ -410,8 +421,16 @@ static BUF_LEN: uint = 128;
 impl<'a> ToCStr for &'a [u8] {
     fn to_c_str(&self) -> CString {
         let mut cs = unsafe { self.to_c_str_unchecked() };
-        check_for_null(*self, cs.as_mut_ptr());
+        assert!(!has_null(*self, cs.as_mut_ptr());
         cs
+    }
+
+    fn to_c_str_opt(&self) -> Option<CString> {
+        let mut cs = unsafe { self.to_c_str_unchecked() };
+        if has_null(*self, cs.as_mut_ptr()) {
+            return None;
+        }
+        Some(cs)
     }
 
     unsafe fn to_c_str_unchecked(&self) -> CString {
@@ -443,7 +462,7 @@ unsafe fn with_c_str<T>(v: &[u8], checked: bool,
 
         let buf = buf.as_mut_ptr();
         if checked {
-            check_for_null(v, buf as *mut libc::c_char);
+            assert!(!has_null(v, buf as *mut libc::c_char));
         }
 
         return f(buf as *const libc::c_char)
@@ -457,13 +476,16 @@ unsafe fn with_c_str<T>(v: &[u8], checked: bool,
 }
 
 #[inline]
-fn check_for_null(v: &[u8], buf: *mut libc::c_char) {
+fn has_null(v: &[u8], buf: *mut libc::c_char) -> bool {
     for i in range(0, v.len()) {
         unsafe {
             let p = buf.offset(i as int);
-            assert!(*p != 0);
+            if *p == 0 {
+                return true;
+            }
         }
     }
+    false
 }
 
 /// External iterator for a CString's bytes.

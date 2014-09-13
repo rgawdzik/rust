@@ -2711,9 +2711,16 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
 
                     unsafe {
                         let llty = llvm::LLVMTypeOf(v);
-                        let g = sym.as_slice().with_c_str(|buf| {
+                        let g = match sym.as_slice().with_c_str_opt(|buf| {
                             llvm::LLVMAddGlobal(ccx.llmod(), llty, buf)
-                        });
+                        }) {
+                            Some(out) => { out },
+                            None => {
+                                println!("ERROR!");
+                                //cx.span_lint(TYPE_OVERFLOW, e.span,"literal out of range for its type");
+                                return;
+                            }
+                        }
 
                         // Apply the `unnamed_addr` attribute if
                         // requested
