@@ -347,7 +347,6 @@ pub trait ToCStr {
     }
 
     fn with_c_str_opt<T>(&self, f: |*const libc::c_char| -> T) -> Option<T> {
-        let c_str =
         return match self.to_c_str_opt() {
             Some(c_str) => {
                 Some(f(c_str.as_ptr()))
@@ -379,6 +378,11 @@ impl<'a> ToCStr for &'a str {
     }
 
     #[inline]
+    fn to_c_str_opt(&self) -> Option<CString> {
+        self.as_bytes().to_c_str_opt()
+    }
+
+    #[inline]
     unsafe fn to_c_str_unchecked(&self) -> CString {
         self.as_bytes().to_c_str_unchecked()
     }
@@ -403,6 +407,11 @@ impl ToCStr for String {
     #[inline]
     unsafe fn to_c_str_unchecked(&self) -> CString {
         self.as_bytes().to_c_str_unchecked()
+    }
+
+    #[inline]
+    fn to_c_str_opt(&self) -> Option<CString> {
+        self.as_bytes().to_c_str_opt()
     }
 
     #[inline]
