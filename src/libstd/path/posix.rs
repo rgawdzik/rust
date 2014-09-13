@@ -100,7 +100,7 @@ impl ToCStr for Path {
         unsafe { self.to_c_str_unchecked() }
     }
 
-    fn to_c_str_opt(&self) -> CString {
+    fn to_c_str_opt(&self) -> Option<CString> {
         Some(unsafe { self.to_c_str_unchecked() })
     }
 
