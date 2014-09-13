@@ -421,7 +421,7 @@ static BUF_LEN: uint = 128;
 impl<'a> ToCStr for &'a [u8] {
     fn to_c_str(&self) -> CString {
         let mut cs = unsafe { self.to_c_str_unchecked() };
-        assert!(!has_null(*self, cs.as_mut_ptr());
+        assert!(!has_null(*self, cs.as_mut_ptr()));
         cs
     }
 
