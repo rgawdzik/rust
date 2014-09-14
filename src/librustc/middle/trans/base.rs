@@ -2718,9 +2718,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                         }) {
                             Some(out) => { g = out; },
                             None => {
-                                println!("ERROR!");
-                                //cx.span_lint(TYPE_OVERFLOW, e.span,"literal out of range for its type");
-                                return;
+                                fail!("ERROR")
                             }
                         };
 
