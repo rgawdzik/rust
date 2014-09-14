@@ -2711,7 +2711,8 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
 
                     unsafe {
                         let llty = llvm::LLVMTypeOf(v);
-                        let g = 0;
+                        let mut g;
+
                         match sym.as_slice().with_c_str_opt(|buf| {
                             llvm::LLVMAddGlobal(ccx.llmod(), llty, buf)
                         }) {
@@ -2719,7 +2720,6 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                             None => {
                                 println!("ERROR!");
                                 //cx.span_lint(TYPE_OVERFLOW, e.span,"literal out of range for its type");
-                                return;
                             }
                         };
 
