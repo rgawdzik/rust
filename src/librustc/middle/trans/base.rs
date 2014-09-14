@@ -2720,7 +2720,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                                 //cx.span_lint(TYPE_OVERFLOW, e.span,"literal out of range for its type");
                                 return;
                             }
-                        }
+                        };
 
                         // Apply the `unnamed_addr` attribute if
                         // requested
