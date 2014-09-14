@@ -2711,7 +2711,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
 
                     unsafe {
                         let llty = llvm::LLVMTypeOf(v);
-                        let *mut g: rustc_llvm::Value_opaque = 0;
+                        let mut g: *rustc_llvm::Value_opaque = 0;
 
                         match sym.as_slice().with_c_str_opt(|buf| {
                             llvm::LLVMAddGlobal(ccx.llmod(), llty, buf)
