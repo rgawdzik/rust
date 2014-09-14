@@ -2701,6 +2701,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                     // using the current crate's name/version
                     // information in the hash of the symbol
                     debug!("making {}", sym);
+                    let original_expr = expr;
                     let is_local = !ccx.external_srcs().borrow().contains_key(&id);
 
                     // We need the translated value here, because for enums the
@@ -2718,7 +2719,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                         }) {
                             Some(out) => { g = out; },
                             None => {
-                                ccx.sess().span_fatal(expr.span, "unexpected null in string");
+                                ccx.sess().span_fatal(original_expr.span, "unexpected null in string");
                             }
                         };
 
