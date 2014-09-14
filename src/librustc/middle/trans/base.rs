@@ -2718,7 +2718,7 @@ pub fn get_item_val(ccx: &CrateContext, id: ast::NodeId) -> ValueRef {
                         }) {
                             Some(out) => { g = out; },
                             None => {
-                                fail!("ERROR")
+                                ccx.sess().bug("unexpected null in string.");
                             }
                         };
 
