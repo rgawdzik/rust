@@ -1408,6 +1408,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
     let implications = implicator::implications(rcx.fcx.infcx(), rcx.fcx, rcx.body_id,
                                                 ty, region, origin.span());
     for implication in implications {
+        // if implication.
         debug!("implication: {}", implication.repr(rcx.tcx()));
         match implication {
             implicator::Implication::RegionSubRegion(None, r_a, r_b) => {
@@ -1449,8 +1450,12 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
     let upvars = rcx.fcx.closure_upvars(def_id, substs).unwrap();
     for upvar in upvars {
         let var_id = upvar.def.def_id().local_id();
+        let new_origin = infer::FreeVariable(origin.span(), var_id);
+        if origin == new_origin {
+            error!("INFINITE LOOP!");
+        }
         type_must_outlive(
-            rcx, infer::FreeVariable(origin.span(), var_id),
+            rcx, new_origin,
             upvar.ty, region);
     }
 }
