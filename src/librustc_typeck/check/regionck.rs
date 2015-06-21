@@ -96,6 +96,7 @@ use middle::infer::{self, GenericKind};
 use middle::pat_util;
 use util::ppaux::{ty_to_string, Repr};
 
+use std::collections::HashSet;
 use std::mem;
 use syntax::{ast, ast_util};
 use syntax::codemap::Span;
@@ -166,7 +167,7 @@ pub fn regionck_ensure_component_tys_wf<'a, 'tcx>(fcx: &FnCtxt<'a, 'tcx>,
         // unless the type does not meet the well-formedness
         // requirements.
         type_must_outlive(&mut rcx, infer::RelateParamBound(span, component_ty),
-                          component_ty, ty::ReEmpty, HashSet::new());
+                          component_ty, ty::ReEmpty, &mut HashSet::new());
     }
 }
 
@@ -325,7 +326,7 @@ impl<'a, 'tcx> Rcx<'a, 'tcx> {
                    r_o.repr(self.tcx()));
             let sup_type = self.resolve_type(r_o.sup_type);
             let origin = infer::RelateParamBound(r_o.cause.span, sup_type);
-            type_must_outlive(self, origin, sup_type, r_o.sub_region, HashSet::new());
+            type_must_outlive(self, origin, sup_type, r_o.sub_region, &mut HashSet::new());
         }
 
         // Processing the region obligations should not cause the list to grow further:
@@ -510,7 +511,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
     let expr_ty = rcx.resolve_node_type(expr.id);
 
     type_must_outlive(rcx, infer::ExprTypeIsNotInScope(expr_ty, expr.span),
-                      expr_ty, ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
+                      expr_ty, ty::ReScope(CodeExtent::from_node_id(expr.id)), &mut HashSet::new());
 
     let method_call = MethodCall::expr(expr.id);
     let has_method_map = rcx.fcx.inh.method_map.borrow().contains_key(&method_call);
@@ -641,7 +642,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
                 type_must_outlive(rcx,
                                   infer::Operand(expr.span),
                                   ty,
-                                  ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
+                                  ty::ReScope(CodeExtent::from_node_id(expr.id)), &mut HashSet::new());
             }
             visit::walk_expr(rcx, expr);
         }
@@ -705,7 +706,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
             // FIXME(#6268) nested method calls requires that this rule change
             let ty0 = rcx.resolve_node_type(expr.id);
             type_must_outlive(rcx, infer::AddrOf(expr.span),
-                              ty0, ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
+                              ty0, ty::ReScope(CodeExtent::from_node_id(expr.id)), &mut HashSet::new());
             visit::walk_expr(rcx, expr);
         }
 
@@ -774,7 +775,7 @@ fn constrain_cast(rcx: &mut Rcx,
                 // When T is existentially quantified as a trait
                 // `Foo+'to`, it must outlive the region bound `'to`.
                 type_must_outlive(rcx, infer::RelateObjectBound(cast_expr.span),
-                                  from_ty, bounds.region_bound, HashSet::new());
+                                  from_ty, bounds.region_bound, &mut HashSet::new());
             }
 
             /*From:*/ (&ty::TyBox(from_referent_ty),
@@ -922,11 +923,11 @@ fn constrain_autoderefs<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
 
                 // Specialized version of constrain_call.
                 type_must_outlive(rcx, infer::CallRcvr(deref_expr.span),
-                                  self_ty, r_deref_expr, HashSet::new());
+                                  self_ty, r_deref_expr, &mut HashSet::new());
                 match fn_sig.output {
                     ty::FnConverging(return_type) => {
                         type_must_outlive(rcx, infer::CallReturn(deref_expr.span),
-                                          return_type, r_deref_expr, HashSet::new());
+                                          return_type, r_deref_expr, &mut HashSet::new());
                         return_type
                     }
                     ty::FnDiverging => unreachable!()
@@ -1027,7 +1028,7 @@ fn type_of_node_must_outlive<'a, 'tcx>(
             ty={}, ty0={}, id={}, minimum_lifetime={:?})",
            ty_to_string(tcx, ty), ty_to_string(tcx, ty0),
            id, minimum_lifetime);
-    type_must_outlive(rcx, origin, ty, minimum_lifetime, HashSet::new());
+    type_must_outlive(rcx, origin, ty, minimum_lifetime, &mut HashSet::new());
 }
 
 /// Computes the guarantor for an expression `&base` and then ensures that the lifetime of the
@@ -1400,7 +1401,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                origin: infer::SubregionOrigin<'tcx>,
                                ty: Ty<'tcx>,
                                region: ty::Region,
-                               visited: HashSet<(Ty<'tcx>, ty::Region, Span)>)
+                               visited: &mut HashSet<(Ty<'tcx>, ty::Region, Span)>)
 {
     debug!("type_must_outlive(ty={}, region={})",
            ty.repr(rcx.tcx()),
@@ -1410,7 +1411,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                                 ty, region, origin.span());
 
     let candidate = (ty,region, origin.span());
-    if visited.contains(candidate) {
+    if visited.contains(&candidate) {
         error!("Self referencing type found!");
         return;
     }
@@ -1435,7 +1436,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                 generic_must_outlive(rcx, o1, r_a, generic_b);
             }
             implicator::Implication::RegionSubClosure(_, r_a, def_id, substs) => {
-                closure_must_outlive(rcx, origin.clone(), r_a, def_id, substs, region, ty);
+                closure_must_outlive(rcx, origin.clone(), r_a, def_id, substs, visited);
             }
             implicator::Implication::Predicate(def_id, predicate) => {
                 let cause = traits::ObligationCause::new(origin.span(),
@@ -1453,7 +1454,7 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                   region: ty::Region,
                                   def_id: ast::DefId,
                                   substs: &'tcx Substs<'tcx>,
-                                  visited: HashSet<(Ty<'tcx>, ty::Region, Span)>) {
+                                  visited: &mut HashSet<(Ty<'tcx>, ty::Region, Span)>) {
     debug!("closure_must_outlive(region={}, def_id={}, substs={})",
            region.repr(rcx.tcx()), def_id.repr(rcx.tcx()), substs.repr(rcx.tcx()));
 
