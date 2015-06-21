@@ -1426,7 +1426,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                 generic_must_outlive(rcx, o1, r_a, generic_b);
             }
             implicator::Implication::RegionSubClosure(_, r_a, def_id, substs) => {
-                closure_must_outlive(rcx, origin.clone(), r_a, def_id, substs);
+                closure_must_outlive(rcx, origin.clone(), r_a, def_id, substs, region, ty);
             }
             implicator::Implication::Predicate(def_id, predicate) => {
                 let cause = traits::ObligationCause::new(origin.span(),
@@ -1443,7 +1443,9 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                   origin: infer::SubregionOrigin<'tcx>,
                                   region: ty::Region,
                                   def_id: ast::DefId,
-                                  substs: &'tcx Substs<'tcx>) {
+                                  substs: &'tcx Substs<'tcx>,
+                                  original_region: ty::Region,
+                                  original_ty: Ty<'tcx>) {
     debug!("closure_must_outlive(region={}, def_id={}, substs={})",
            region.repr(rcx.tcx()), def_id.repr(rcx.tcx()), substs.repr(rcx.tcx()));
 
@@ -1451,7 +1453,7 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
     for upvar in upvars {
         let var_id = upvar.def.def_id().local_id();
         let new_origin = infer::FreeVariable(origin.span(), var_id);
-        if origin == new_origin {
+        if origin.span() == new_origin.span() && original_ty == upvar.ty && original_region == region {
             error!("INFINITE LOOP!");
         }
         type_must_outlive(
