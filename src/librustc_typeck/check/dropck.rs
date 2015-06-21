@@ -15,7 +15,6 @@ use middle::region;
 use middle::subst::{self, Subst};
 use middle::ty::{self, Ty};
 use util::ppaux::{Repr, UserString};
-use std::collections::HashSet;
 
 use syntax::ast;
 use syntax::codemap::{self, Span};
@@ -459,7 +458,7 @@ fn iterate_over_potentially_unsafe_regions_in_type<'a, 'tcx>(
                                        scope)),
                 };
 
-            regionck::type_must_outlive(rcx, origin(), typ, parent_region, &mut HashSet::new());
+            regionck::type_must_outlive(rcx, origin(), typ, parent_region);
 
         } else {
             // Okay, `typ` itself is itself not reachable by a
