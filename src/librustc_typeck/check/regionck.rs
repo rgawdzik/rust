@@ -1400,7 +1400,7 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                origin: infer::SubregionOrigin<'tcx>,
                                ty: Ty<'tcx>,
                                region: ty::Region,
-                               visited: HashSet<(Ty<'tcx>, ty::Region, infer::SubregionOrigin<'tcx>)>)
+                               visited: HashSet<(Ty<'tcx>, ty::Region, Span)>)
 {
     debug!("type_must_outlive(ty={}, region={})",
            ty.repr(rcx.tcx()),
@@ -1408,11 +1408,14 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
 
     let implications = implicator::implications(rcx.fcx.infcx(), rcx.fcx, rcx.body_id,
                                                 ty, region, origin.span());
-    if visited_regions.contains((ty,region, origin)) {
+
+    let candidate = (ty,region, origin.span());
+    if visited.contains(candidate) {
         error!("Self referencing type found!");
         return;
     }
-    visited_regions.insert((ty, region, origin));
+    visited.insert(candidate);
+
     for implication in implications {
         // if implication.
         debug!("implication: {}", implication.repr(rcx.tcx()));
@@ -1450,7 +1453,7 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                   region: ty::Region,
                                   def_id: ast::DefId,
                                   substs: &'tcx Substs<'tcx>,
-                                  visited: HashSet<(Ty<'tcx>, ty::Region, infer::SubregionOrigin<'tcx>)>) {
+                                  visited: HashSet<(Ty<'tcx>, ty::Region, Span)>) {
     debug!("closure_must_outlive(region={}, def_id={}, substs={})",
            region.repr(rcx.tcx()), def_id.repr(rcx.tcx()), substs.repr(rcx.tcx()));
 
