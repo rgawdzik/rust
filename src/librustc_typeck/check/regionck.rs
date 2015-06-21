@@ -166,7 +166,7 @@ pub fn regionck_ensure_component_tys_wf<'a, 'tcx>(fcx: &FnCtxt<'a, 'tcx>,
         // unless the type does not meet the well-formedness
         // requirements.
         type_must_outlive(&mut rcx, infer::RelateParamBound(span, component_ty),
-                          component_ty, ty::ReEmpty);
+                          component_ty, ty::ReEmpty, HashSet::new());
     }
 }
 
@@ -325,7 +325,7 @@ impl<'a, 'tcx> Rcx<'a, 'tcx> {
                    r_o.repr(self.tcx()));
             let sup_type = self.resolve_type(r_o.sup_type);
             let origin = infer::RelateParamBound(r_o.cause.span, sup_type);
-            type_must_outlive(self, origin, sup_type, r_o.sub_region);
+            type_must_outlive(self, origin, sup_type, r_o.sub_region, HashSet::new());
         }
 
         // Processing the region obligations should not cause the list to grow further:
@@ -510,7 +510,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
     let expr_ty = rcx.resolve_node_type(expr.id);
 
     type_must_outlive(rcx, infer::ExprTypeIsNotInScope(expr_ty, expr.span),
-                      expr_ty, ty::ReScope(CodeExtent::from_node_id(expr.id)));
+                      expr_ty, ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
 
     let method_call = MethodCall::expr(expr.id);
     let has_method_map = rcx.fcx.inh.method_map.borrow().contains_key(&method_call);
@@ -641,7 +641,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
                 type_must_outlive(rcx,
                                   infer::Operand(expr.span),
                                   ty,
-                                  ty::ReScope(CodeExtent::from_node_id(expr.id)));
+                                  ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
             }
             visit::walk_expr(rcx, expr);
         }
@@ -705,7 +705,7 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
             // FIXME(#6268) nested method calls requires that this rule change
             let ty0 = rcx.resolve_node_type(expr.id);
             type_must_outlive(rcx, infer::AddrOf(expr.span),
-                              ty0, ty::ReScope(CodeExtent::from_node_id(expr.id)));
+                              ty0, ty::ReScope(CodeExtent::from_node_id(expr.id)), HashSet::new());
             visit::walk_expr(rcx, expr);
         }
 
@@ -774,7 +774,7 @@ fn constrain_cast(rcx: &mut Rcx,
                 // When T is existentially quantified as a trait
                 // `Foo+'to`, it must outlive the region bound `'to`.
                 type_must_outlive(rcx, infer::RelateObjectBound(cast_expr.span),
-                                  from_ty, bounds.region_bound);
+                                  from_ty, bounds.region_bound, HashSet::new());
             }
 
             /*From:*/ (&ty::TyBox(from_referent_ty),
@@ -922,11 +922,11 @@ fn constrain_autoderefs<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
 
                 // Specialized version of constrain_call.
                 type_must_outlive(rcx, infer::CallRcvr(deref_expr.span),
-                                  self_ty, r_deref_expr);
+                                  self_ty, r_deref_expr, HashSet::new());
                 match fn_sig.output {
                     ty::FnConverging(return_type) => {
                         type_must_outlive(rcx, infer::CallReturn(deref_expr.span),
-                                          return_type, r_deref_expr);
+                                          return_type, r_deref_expr, HashSet::new());
                         return_type
                     }
                     ty::FnDiverging => unreachable!()
@@ -1027,7 +1027,7 @@ fn type_of_node_must_outlive<'a, 'tcx>(
             ty={}, ty0={}, id={}, minimum_lifetime={:?})",
            ty_to_string(tcx, ty), ty_to_string(tcx, ty0),
            id, minimum_lifetime);
-    type_must_outlive(rcx, origin, ty, minimum_lifetime);
+    type_must_outlive(rcx, origin, ty, minimum_lifetime, HashSet::new());
 }
 
 /// Computes the guarantor for an expression `&base` and then ensures that the lifetime of the
@@ -1399,7 +1399,8 @@ fn link_reborrowed_region<'a, 'tcx>(rcx: &Rcx<'a, 'tcx>,
 pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                origin: infer::SubregionOrigin<'tcx>,
                                ty: Ty<'tcx>,
-                               region: ty::Region)
+                               region: ty::Region,
+                               visited: HashSet<(Ty<'tcx>, ty::Region, infer::SubregionOrigin<'tcx>)>)
 {
     debug!("type_must_outlive(ty={}, region={})",
            ty.repr(rcx.tcx()),
@@ -1407,6 +1408,11 @@ pub fn type_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
 
     let implications = implicator::implications(rcx.fcx.infcx(), rcx.fcx, rcx.body_id,
                                                 ty, region, origin.span());
+    if visited_regions.contains((ty,region, origin)) {
+        error!("Self referencing type found!");
+        return;
+    }
+    visited_regions.insert((ty, region, origin));
     for implication in implications {
         // if implication.
         debug!("implication: {}", implication.repr(rcx.tcx()));
@@ -1444,21 +1450,16 @@ fn closure_must_outlive<'a, 'tcx>(rcx: &mut Rcx<'a, 'tcx>,
                                   region: ty::Region,
                                   def_id: ast::DefId,
                                   substs: &'tcx Substs<'tcx>,
-                                  original_region: ty::Region,
-                                  original_ty: Ty<'tcx>) {
+                                  visited: HashSet<(Ty<'tcx>, ty::Region, infer::SubregionOrigin<'tcx>)>) {
     debug!("closure_must_outlive(region={}, def_id={}, substs={})",
            region.repr(rcx.tcx()), def_id.repr(rcx.tcx()), substs.repr(rcx.tcx()));
 
     let upvars = rcx.fcx.closure_upvars(def_id, substs).unwrap();
     for upvar in upvars {
         let var_id = upvar.def.def_id().local_id();
-        let new_origin = infer::FreeVariable(origin.span(), var_id);
-        if origin.span() == new_origin.span() && original_ty == upvar.ty && original_region == region {
-            error!("INFINITE LOOP!");
-        }
         type_must_outlive(
-            rcx, new_origin,
-            upvar.ty, region);
+            rcx, infer::FreeVariable(origin.span(), var_id),
+            upvar.ty, region, visited);
     }
 }
 
